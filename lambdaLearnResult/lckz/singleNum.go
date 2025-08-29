@@ -16,6 +16,10 @@ func main() {
 			map1[v] = 1
 		}
 	}
-	fmt.Println(map1)
+	for k, v := range map1 {
+		if v == 1 {
+			fmt.Printf("只出现一次的数字是：%d", k)
+		}
+	}
 
 }
