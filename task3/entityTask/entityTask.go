@@ -30,6 +30,8 @@ type Post struct {
 	RefUserID uint
 	//文章会有多个的评论
 	CommentList []PostComment
+	//评论状态
+	CommentStatus string
 	gorm.Model
 }
 
@@ -58,6 +60,19 @@ func (p *Post) AfterCreate(tx *gorm.DB) (err error) {
 	return
 }
 
+// 在同一个事务中更新数据
+func (u *PostComment) AfterDelete(tx *gorm.DB) (err error) {
+	postId := u.PostId
+
+	var postCommentCount int64
+	//查询这个文章下的评论数
+	tx.Debug().Model(&PostComment{}).Where(&PostComment{PostId: postId}).Count(&postCommentCount)
+	//如果为0  就把状态改成no
+	if postCommentCount == 0 {
+		tx.Model(&Post{}).Where(&Post{ID: postId}).Update("comment_status", "no")
+	}
+	return
+}
 func Run(db *gorm.DB) {
 	//需要用指针 创建表
 	//db.Debug().AutoMigrate(&User{}, &Post{}, &PostComment{})
@@ -97,20 +112,24 @@ func Run(db *gorm.DB) {
 	//		"group by post_id order by commentCount desc limit 1) as sub on posts.id = sub.post_id").
 	//	Scan(&resultPost)
 	//fmt.Print(resultPost.Title)
+	//
+	//var postCount int64
+	////查询用户id 为1的 文章数
+	//db.Debug().Model(&Post{}).Where(&Post{RefUserID: findUser.ID}).Count(&postCount)
+	//fmt.Printf("保存之前的用户的文章数，%d", postCount)
+	//addPost := Post{Title: "我是新加的哦", Content: "内容暂时保密", RefUserID: findUser.ID}
+	//
+	////传一个参数过去
+	//db.Debug().InstanceSet("postCount", postCount).Create(&addPost)
+	//var postCountAfter int64
+	//
+	//db.Debug().Model(&User{}).Select("post_count").Where(&User{ID: findUser.ID}).
+	//	Find(&postCountAfter)
+	//
+	//fmt.Printf("保存之后的用户的文章数，%d", postCountAfter)
 
-	var postCount int64
-	//查询用户id 为1的 文章数
-	db.Debug().Model(&Post{}).Where(&Post{RefUserID: findUser.ID}).Count(&postCount)
-	fmt.Printf("保存之前的用户的文章数，%d", postCount)
-	addPost := Post{Title: "我是新加的哦", Content: "内容暂时保密", RefUserID: findUser.ID}
-
-	//传一个参数过去
-	db.Debug().InstanceSet("postCount", postCount).Create(&addPost)
-	var postCountAfter int64
-
-	db.Debug().Model(&User{}).Select("post_count").Where(&User{ID: findUser.ID}).
-		Find(&postCountAfter)
-
-	fmt.Printf("保存之后的用户的文章数，%d", postCountAfter)
+	var findPostComment PostComment
+	db.Debug().Model(&PostComment{}).First(&PostComment{}, 2).Find(&findPostComment)
+	db.Debug().Delete(&findPostComment)
 
 }
